@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinema Ruhu — Letterboxd Poster</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --gold: #e8c547;
+    --bg: #0a0a0a;
+    --panel: #111;
+    --border: #1e1e1e;
+    --text: #f0ece0;
+    --muted: #555;
+    --muted2: #2a2a2a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+  }
+
+  /* ── Header ── */
+  .header { text-align: center; margin-bottom: 48px; }
+  .header-label {
+    font-size: 9px; letter-spacing: 4px; color: var(--gold);
+    margin-bottom: 12px; opacity: 0.7; text-transform: uppercase;
+  }
+  h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900; font-style: italic; line-height: 1;
+  }
+  h1 span { color: var(--gold); }
+  .subtitle {
+    margin-top: 12px; font-size: 11px; letter-spacing: 2px;
+    color: var(--muted); text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .container {
+    width: 100%; max-width: 940px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  @media (max-width: 720px) { .container { grid-template-columns: 1fr; } }
+
+  /* ── Panel ── */
+  .panel { background: var(--panel); border: 1px solid var(--border); padding: 28px; }
+  .panel-label {
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Inputs ── */
+  textarea, input[type="password"] {
+    width: 100%; background: #080808; border: 1px solid var(--border);
+    color: var(--text); font-family: 'Courier Prime', monospace;
+    font-size: 13px; line-height: 1.7; padding: 16px;
+    outline: none; transition: border-color 0.2s;
+  }
+  textarea { resize: vertical; min-height: 220px; }
+  input[type="password"] { margin-bottom: 10px; }
+  textarea:focus, input[type="password"]:focus { border-color: var(--gold); }
+  textarea::placeholder, input[type="password"]::placeholder { color: #2a2a2a; }
+
+  .hint { margin-top: 10px; font-size: 11px; color: #444; line-height: 1.5; }
+
+  /* ── Toggles ── */
+  .option-row { margin-bottom: 16px; }
+  .option-label {
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .toggle {
+    background: transparent; border: 1px solid #2a2a2a; color: #666;
+    font-family: 'Courier Prime', monospace; font-size: 11px;
+    letter-spacing: 1px; padding: 5px 12px; cursor: pointer;
+    text-transform: uppercase; transition: all 0.15s;
+  }
+  .toggle:hover { border-color: var(--gold); color: var(--text); }
+  .toggle.active { background: var(--gold); border-color: var(--gold); color: #000; font-weight: 700; }
+
+  .deco-line { height: 1px; background: linear-gradient(90deg, #e8c54730, transparent); margin: 20px 0; }
+
+  /* ── Buttons ── */
+  .generate-btn {
+    width: 100%; background: var(--gold); border: none; color: #000;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 16px; font-weight: 700; font-style: italic;
+    padding: 16px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .generate-btn:hover:not(:disabled) { background: #f0d060; transform: translateY(-1px); }
+  .generate-btn:disabled { background: #222; color: #555; cursor: not-allowed; transform: none; }
+
+  .generate-btn .btn-loader {
+    display: none; position: absolute; inset: 0;
+    background: #222; align-items: center; justify-content: center;
+    font-size: 12px; letter-spacing: 3px; color: var(--gold);
+  }
+  .generate-btn.loading .btn-loader { display: flex; }
+  .generate-btn.loading .btn-text { visibility: hidden; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .btn-loader span { animation: blink 1.2s ease-in-out infinite; }
+  .btn-loader span:nth-child(2) { animation-delay: .2s; }
+  .btn-loader span:nth-child(3) { animation-delay: .4s; }
+
+  .error-msg { color: #c4614a; font-size: 12px; padding: 10px 0; display: none; }
+  .error-msg.visible { display: block; }
+
+  /* ── API Key section ── */
+  .api-section { margin-bottom: 16px; }
+  .api-key-row { display: flex; gap: 8px; align-items: center; }
+  .api-key-row input { flex: 1; margin-bottom: 0; }
+  .key-toggle-btn {
+    background: transparent; border: 1px solid #2a2a2a; color: #666;
+    font-family: 'Courier Prime', monospace; font-size: 10px; letter-spacing: 1px;
+    padding: 8px 12px; cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .key-toggle-btn:hover { border-color: var(--gold); color: var(--text); }
+  .api-hint {
+    font-size: 10px; color: #333; margin-top: 6px; line-height: 1.5;
+  }
+  .api-hint a { color: #555; }
+
+  /* ── History ── */
+  .history-section { grid-column: 1 / -1; display: none; }
+  .history-section.visible { display: block; }
+  .history-scroll {
+    display: flex; gap: 12px; overflow-x: auto;
+    padding-bottom: 12px; scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+  }
+  .history-thumb {
+    flex-shrink: 0; width: 120px; cursor: pointer; opacity: 0.6;
+    transition: opacity 0.2s; border: 1px solid #1e1e1e;
+  }
+  .history-thumb:hover { opacity: 1; border-color: var(--gold); }
+  .history-thumb-inner {
+    height: 80px; display: flex; flex-direction: column;
+    justify-content: center; padding: 8px; gap: 4px;
+  }
+  .history-thumb-title { font-size: 9px; color: #aaa; line-height: 1.3; }
+  .history-thumb-count { font-size: 8px; color: #444; }
+
+  /* ── Poster wrap ── */
+  .poster-wrap { grid-column: 1 / -1; display: none; flex-direction: column; align-items: center; gap: 20px; }
+  .poster-wrap.visible { display: flex; }
+
+  .poster-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .action-btn {
+    background: transparent; border: 1px solid #2a2a2a; color: #888;
+    font-family: 'Courier Prime', monospace; font-size: 11px;
+    letter-spacing: 2px; padding: 10px 20px; cursor: pointer;
+    text-transform: uppercase; transition: all 0.15s;
+  }
+  .action-btn:hover { border-color: var(--gold); color: var(--text); }
+  .action-btn.primary { border-color: var(--gold); color: var(--gold); }
+  .action-btn.primary:hover { background: var(--gold); color: #000; }
+
+  /* ── Poster ── */
+  .poster {
+    width: 420px; background: #050505;
+    position: relative; overflow: hidden;
+    box-shadow: 0 0 0 1px #000, 0 20px 60px rgba(0,0,0,0.8);
+  }
+  @media (max-width: 460px) { .poster { width: 100%; } }
+
+  .poster-outer-border { position: absolute; inset: 0; border: 6px solid var(--c1); pointer-events: none; z-index: 10; }
+  .poster-inner-border { position: absolute; inset: 14px; border: 1px solid color-mix(in srgb, var(--c1) 30%, transparent); pointer-events: none; z-index: 10; }
+  .corner { position: absolute; width: 12px; height: 12px; z-index: 11; }
+  .corner-tl { top: 18px; left: 18px; border-top: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); border-left: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); }
+  .corner-tr { top: 18px; right: 18px; border-top: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); border-right: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); }
+  .corner-bl { bottom: 18px; left: 18px; border-bottom: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); border-left: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); }
+  .corner-br { bottom: 18px; right: 18px; border-bottom: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); border-right: 2px solid color-mix(in srgb, var(--c1) 60%, transparent); }
+
+  .poster-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--c1) 12%, transparent) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 80%, color-mix(in srgb, var(--c2) 10%, transparent) 0%, transparent 50%),
+      linear-gradient(170deg, #0d0d0d, #050505 60%, #0a0807);
+  }
+
+  /* Vintage grain texture overlay */
+  .poster-grain {
+    position: absolute; inset: 0; opacity: 0.04; z-index: 2; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px;
+  }
+
+  .poster-watermark {
+    position: absolute; bottom: -20px; right: -10px;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 160px; font-weight: 900; font-style: italic;
+    color: color-mix(in srgb, var(--c1) 4%, transparent);
+    pointer-events: none; line-height: 1; user-select: none; letter-spacing: -6px; z-index: 0;
+  }
+
+  .poster-content { position: relative; z-index: 3; padding: 36px 32px 32px; }
+
+  .poster-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .poster-oracle-label { font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--c1); opacity: 0.6; }
+  .poster-era-label { font-size: 8px; letter-spacing: 2px; color: #2e2e2e; }
+
+  .poster-rule-top { height: 1px; margin-bottom: 22px; background: linear-gradient(90deg, var(--c1), var(--c2), transparent); opacity: 0.7; }
+
+  .poster-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 40px; font-weight: 900; font-style: italic;
+    line-height: 0.95; color: var(--c1);
+    text-shadow: 0 0 40px color-mix(in srgb, var(--c1) 35%, transparent);
+    margin-bottom: 18px; letter-spacing: -1px;
+  }
+
+  .poster-tagline {
+    font-size: 12px; color: #a09080; font-style: italic;
+    line-height: 1.65; margin-bottom: 22px;
+    padding-left: 12px; border-left: 2px solid color-mix(in srgb, var(--c1) 50%, transparent);
+  }
+
+  .poster-rule-mid { height: 1px; margin-bottom: 22px; background: linear-gradient(90deg, transparent, var(--c1), var(--c2), transparent); opacity: 0.4; }
+
+  .poster-manifesto {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 11.5px; line-height: 1.9; color: #6e6558; font-style: italic; margin-bottom: 24px;
+  }
+
+  .poster-keywords { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .keyword { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; padding: 3px 8px; }
+
+  .poster-rule-bot { height: 1px; margin-bottom: 16px; background: linear-gradient(90deg, var(--c1), transparent); opacity: 0.3; }
+
+  .poster-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+  .palette-dots { display: flex; gap: 6px; }
+  .palette-dot { width: 10px; height: 10px; }
+
+  .poster-meta { text-align: right; }
+  .poster-theme { font-size: 8px; letter-spacing: 2px; color: #252525; text-transform: uppercase; }
+  .poster-filmcount { font-size: 8px; color: #1e1e1e; margin-top: 2px; }
+
+  .poster-footer { margin-top: 16px; padding-top: 14px; border-top: 1px solid #1a1a1a; }
+  .poster-genres { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 5px; }
+  .poster-genre { font-size: 8px; letter-spacing: 1px; color: #3a3a3a; text-transform: uppercase; }
+  .poster-directors { font-size: 8px; letter-spacing: 1px; color: #2a2a2a; font-style: italic; }
+
+  /* Letterboxd signature */
+  .poster-lb-badge {
+    position: absolute; top: 8px; right: 8px; z-index: 15;
+    font-size: 6px; letter-spacing: 1.5px; color: #1a1a1a; text-transform: uppercase;
+  }
+
+  /* ── Toast notification ── */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1a1a1a; border: 1px solid #2a2a2a; color: #aaa;
+    font-size: 11px; letter-spacing: 2px; padding: 12px 24px;
+    text-transform: uppercase; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-label">◆ LETTERBOXD POSTER ORACLE ◆</div>
+  <h1>Sinema <span>Ruhu</span></h1>
+  <p class="subtitle">Film listenden kişisel poster konsepti</p>
+</div>
+
+<div class="container">
+
+  <!-- Film Input -->
+  <div class="panel">
+    <div class="panel-label">Film Listesi</div>
+    <textarea id="filmInput" placeholder="İzlediğin filmleri buraya yaz.
+Her satıra bir film ya da virgülle ayır.
+Örnek:
+Mulholland Drive (2001)
+Parasite (2019)
+The Lighthouse (2019)
+Her (2013)
+Stalker (1979)
+Persona (1966)"></textarea>
+    <p class="hint">— En az 4 film ekle. Ne kadar çok film, o kadar iyi analiz.</p>
+  </div>
+
+  <!-- Options + API Key -->
+  <div class="panel">
+    <div class="panel-label">Poster Stili</div>
+
+    <div class="option-row">
+      <div class="option-label">Dönem</div>
+      <div class="toggle-group" id="eraGroup">
+        <button class="toggle active" data-val="vintage">Vintage</button>
+        <button class="toggle" data-val="1920s-30s">1920s–30s</button>
+        <button class="toggle" data-val="1950s-60s">1950s–60s</button>
+        <button class="toggle" data-val="1970s-80s">1970s–80s</button>
+        <button class="toggle" data-val="1990s-2000s">1990s–2000s</button>
+        <button class="toggle" data-val="modern">Modern</button>
+        <button class="toggle" data-val="retro-futurist">Retro-Fütürist</button>
+        <button class="toggle" data-val="brutalist">Brütalist</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <div class="option-label">Dil</div>
+      <div class="toggle-group" id="langGroup">
+        <button class="toggle active" data-val="Türkçe">Türkçe</button>
+        <button class="toggle" data-val="English">English</button>
+        <button class="toggle" data-val="Español">Español</button>
+        <button class="toggle" data-val="Français">Français</button>
+      </div>
+    </div>
+
+    <div class="option-row">
+      <div class="option-label">Yoğunluk</div>
+      <div class="toggle-group" id="moodGroup">
+        <button class="toggle" data-val="melancholic">Melankolik</button>
+        <button class="toggle active" data-val="intense">Yoğun</button>
+        <button class="toggle" data-val="dreamy">Rüyamsı</button>
+        <button class="toggle" data-val="raw">Ham/Gerçekçi</button>
+        <button class="toggle" data-val="poetic">Şiirsel</button>
+        <button class="toggle" data-val="uncanny">Tekinsiz</button>
+      </div>
+    </div>
+
+    <div class="deco-line"></div>
+
+    <!-- API Key -->
+    <div class="api-section">
+      <div class="option-label">Anthropic API Key</div>
+      <div class="api-key-row">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" />
+        <button class="key-toggle-btn" id="keyToggleBtn" onclick="toggleKeyVisibility()">Göster</button>
+      </div>
+      <p class="api-hint">Anahtar yalnızca tarayıcında saklanır, hiçbir yere gönderilmez.</p>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generate()">
+      <span class="btn-text">→ Poster Konseptini Üret</span>
+      <span class="btn-loader">
+        <span>◆</span><span>◆</span><span>◆</span>
+      </span>
+    </button>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section panel" id="historySection">
+    <div class="panel-label">Geçmiş Posterler</div>
+    <div class="history-scroll" id="historyScroll"></div>
+  </div>
+
+  <!-- Poster Output -->
+  <div class="poster-wrap" id="posterWrap">
+
+    <div class="poster" id="poster">
+      <div class="poster-outer-border"></div>
+      <div class="poster-inner-border"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="poster-bg"></div>
+      <div class="poster-grain"></div>
+      <div class="poster-watermark" id="posterWatermark"></div>
+      <div class="poster-lb-badge">SINEMA RUHU</div>
+      <div class="poster-content">
+        <div class="poster-top">
+          <span class="poster-oracle-label">◆ SİNEMA RUHU</span>
+          <span class="poster-era-label" id="posterEraLabel"></span>
+        </div>
+        <div class="poster-rule-top"></div>
+        <div class="poster-title" id="posterTitle"></div>
+        <div class="poster-tagline" id="posterTagline"></div>
+        <div class="poster-rule-mid"></div>
+        <div class="poster-manifesto" id="posterManifesto"></div>
+        <div class="poster-keywords" id="posterKeywords"></div>
+        <div class="poster-rule-bot"></div>
+        <div class="poster-bottom">
+          <div class="palette-dots" id="paletteDots"></div>
+          <div class="poster-meta">
+            <div class="poster-theme" id="posterTheme"></div>
+            <div class="poster-filmcount" id="posterFilmCount"></div>
+          </div>
+        </div>
+        <div class="poster-footer">
+          <div class="poster-genres" id="posterGenres"></div>
+          <div class="poster-directors" id="posterDirectors"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="poster-actions">
+      <button class="action-btn primary" onclick="downloadPoster()">↓ PNG İndir</button>
+      <button class="action-btn" onclick="copyTagline()">◇ Tagline Kopyala</button>
+      <button class="action-btn" onclick="generate()">↺ Yeniden Üret</button>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ── Toggle groups ── */
+  document.querySelectorAll('.toggle-group').forEach(group => {
+    group.querySelectorAll('.toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        group.querySelectorAll('.toggle').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  function getVal(groupId) {
+    return document.querySelector(`#${groupId} .toggle.active`)?.dataset.val || '';
+  }
+
+  /* ── API key visibility toggle ── */
+  function toggleKeyVisibility() {
+    const inp = document.getElementById('apiKeyInput');
+    const btn = document.getElementById('keyToggleBtn');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      btn.textContent = 'Gizle';
+    } else {
+      inp.type = 'password';
+      btn.textContent = 'Göster';
+    }
+  }
+
+  function getApiKey() {
+    return document.getElementById('apiKeyInput').value.trim();
+  }
+
+  /* ── Toast ── */
+  function showToast(msg, duration = 2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  /* ── Error ── */
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '— ' + msg;
+    el.classList.add('visible');
+  }
+  function hideError() {
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+
+  /* ── Loading state ── */
+  function setLoading(val) {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = val;
+    btn.classList.toggle('loading', val);
+  }
+
+  /* ── Generate ── */
+  async function generate() {
+    const filmText = document.getElementById('filmInput').value.trim();
+    const lines = filmText.split(/[\n,;]+/).map(l => l.trim()).filter(l => l.length > 1);
+
+    if (lines.length < 4) {
+      showError(`En az 4 film gerekiyor. Şu an ${lines.length} algılandı.`);
+      return;
+    }
+
+    const apiKey = getApiKey();
+    if (!apiKey.startsWith('sk-')) {
+      showError('Geçerli bir Anthropic API anahtarı girin (sk- ile başlamalı).');
+      return;
+    }
+
+    const era  = getVal('eraGroup');
+    const lang = getVal('langGroup');
+    const mood = getVal('moodGroup');
+
+    setLoading(true);
+    hideError();
+
+    const prompt = `Sen bir sinema sanatçısı ve film eleştirmenisin. Aşağıdaki film listesini analiz et.
+Yanıtını YALNIZCA geçerli JSON olarak ver, markdown veya kod bloğu kullanma:
+{
+  "soulTitle": "3-5 kelimelik sinema ruhu başlığı (${lang})",
+  "tagline": "etkileyici, kısa tagline (${lang})",
+  "genres": ["tür1","tür2","tür3"],
+  "directors": ["yönetmen1","yönetmen2","yönetmen3"],
+  "era": "baskın dönem (kısa, ${lang})",
+  "palette": ["renk açıklaması1","renk açıklaması2","renk açıklaması3"],
+  "paletteHex": ["#hex1","#hex2","#hex3"],
+  "manifesto": "3-4 cümle şiirsel sinema manifestosu (${lang}, ${mood} ton, birinci çoğul şahısla)",
+  "keywords": ["k1","k2","k3","k4","k5"],
+  "filmCount": ${lines.length},
+  "dominantTheme": "tek kelime dominant tema (${lang})"
+}
+Film listesi:
+${filmText}
+Stil: ${era} dönem, ${mood} atmosfer. Renk paleti bu döneme ve ruh haline uygun olsun.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-5',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) { showError('API Hatası: ' + data.error.message); return; }
+
+      const raw = (data.content || []).map(c => c.text || '').join('');
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) { showError('JSON bulunamadı. Lütfen tekrar deneyin.'); return; }
+
+      const parsed = JSON.parse(match[0]);
+      renderPoster(parsed);
+      saveToHistory(parsed);
+
+    } catch (e) {
+      if (e.message.includes('Failed to fetch')) {
+        showError('Bağlantı hatası. API key doğruysa CORS proxy gerekebilir.');
+      } else {
+        showError('Hata: ' + e.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ── Render poster ── */
+  function renderPoster(d) {
+    const c1 = (d.paletteHex || [])[0] || '#e8c547';
+    const c2 = (d.paletteHex || [])[1] || '#c4614a';
+    const poster = document.getElementById('poster');
+
+    poster.style.setProperty('--c1', c1);
+    poster.style.setProperty('--c2', c2);
+    poster.style.boxShadow = `0 0 0 1px #000, 0 0 80px ${c1}18, 0 20px 60px rgba(0,0,0,0.8)`;
+
+    document.getElementById('posterWatermark').textContent = (d.soulTitle || '').split(' ')[0];
+    document.getElementById('posterEraLabel').textContent  = (d.era || '').toUpperCase();
+    document.getElementById('posterTitle').textContent     = d.soulTitle || '';
+    document.getElementById('posterTagline').textContent   = d.tagline || '';
+    document.getElementById('posterManifesto').textContent = d.manifesto || '';
+    document.getElementById('posterTheme').textContent     = (d.dominantTheme || '').toUpperCase();
+    document.getElementById('posterFilmCount').textContent = (d.filmCount || '') + ' FILM';
+
+    document.getElementById('posterKeywords').innerHTML = (d.keywords || []).map((k, i) => {
+      const c = i % 2 === 0 ? c1 : c2;
+      return `<span class="keyword" style="color:${c};border:1px solid ${c}40">${k}</span>`;
+    }).join('');
+
+    document.getElementById('paletteDots').innerHTML = (d.paletteHex || []).map(hex =>
+      `<div class="palette-dot" style="background:${hex};box-shadow:0 0 8px ${hex}60" title="${hex}"></div>`
+    ).join('');
+
+    document.getElementById('posterGenres').innerHTML = (d.genres || []).map((g, i) =>
+      `<span class="poster-genre">${i > 0 ? '<span style="margin-right:6px;color:#222">·</span>' : ''}${g}</span>`
+    ).join('');
+
+    document.getElementById('posterDirectors').textContent = (d.directors || []).join(' · ');
+
+    const wrap = document.getElementById('posterWrap');
+    wrap.classList.add('visible');
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ── Download PNG ── */
+  async function downloadPoster() {
+    showToast('Poster hazırlanıyor···');
+    try {
+      const poster = document.getElementById('poster');
+      const canvas = await html2canvas(poster, {
+        scale: 3,
+        backgroundColor: '#050505',
+        useCORS: true,
+        logging: false
+      });
+      const link = document.createElement('a');
+      link.download = 'sinema-ruhu-poster.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('İndirildi ◆');
+    } catch (e) {
+      showToast('İndirme hatası: ' + e.message);
+    }
+  }
+
+  /* ── Copy tagline ── */
+  function copyTagline() {
+    const text = document.getElementById('posterTagline').textContent;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => showToast('Tagline kopyalandı ◆'));
+  }
+
+  /* ── History (localStorage) ── */
+  const HISTORY_KEY = 'sinema_ruhu_history';
+  const MAX_HISTORY = 6;
+
+  function saveToHistory(data) {
+    let history = loadHistory();
+    history.unshift({ data, ts: Date.now() });
+    if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
+    renderHistory();
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    const history = loadHistory();
+    const section = document.getElementById('historySection');
+    const scroll  = document.getElementById('historyScroll');
+
+    if (!history.length) { section.classList.remove('visible'); return; }
+    section.classList.add('visible');
+
+    scroll.innerHTML = history.map((item, i) => {
+      const c1 = (item.data.paletteHex || [])[0] || '#333';
+      return `<div class="history-thumb" onclick="loadFromHistory(${i})" style="background:${c1}0a;border-color:${c1}30">
+        <div class="history-thumb-inner">
+          <div class="history-thumb-title" style="color:${c1}">${item.data.soulTitle || '—'}</div>
+          <div class="history-thumb-count">${item.data.filmCount || 0} film</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function loadFromHistory(index) {
+    const history = loadHistory();
+    if (history[index]) {
+      renderPoster(history[index].data);
+      showToast('Poster yüklendi ◆');
+    }
+  }
+
+  /* ── Init ── */
+  renderHistory();
+</script>
+</body>
+</html>

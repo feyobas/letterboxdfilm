@@ -519,7 +519,9 @@ ${filmText}
 Stil: ${era} dönem, ${mood} atmosfer. Renk paleti bu döneme ve ruh haline uygun olsun.`;
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const PROXY = 'https://corsproxy.io/?url=';
+      const API_URL = 'https://api.anthropic.com/v1/messages';
+      const res = await fetch(PROXY + encodeURIComponent(API_URL), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,11 +547,7 @@ Stil: ${era} dönem, ${mood} atmosfer. Renk paleti bu döneme ve ruh haline uygu
       saveToHistory(parsed);
 
     } catch (e) {
-      if (e.message.includes('Failed to fetch')) {
-        showError('Bağlantı hatası. API key doğruysa CORS proxy gerekebilir.');
-      } else {
-        showError('Hata: ' + e.message);
-      }
+      showError('Bağlantı hatası: ' + e.message);
     } finally {
       setLoading(false);
     }

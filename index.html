@@ -123,20 +123,6 @@
   .error-msg { color: #c4614a; font-size: 12px; padding: 10px 0; display: none; }
   .error-msg.visible { display: block; }
 
-  /* ── API Key section ── */
-  .api-section { margin-bottom: 16px; }
-  .api-key-row { display: flex; gap: 8px; align-items: center; }
-  .api-key-row input { flex: 1; margin-bottom: 0; }
-  .key-toggle-btn {
-    background: transparent; border: 1px solid #2a2a2a; color: #666;
-    font-family: 'Courier Prime', monospace; font-size: 10px; letter-spacing: 1px;
-    padding: 8px 12px; cursor: pointer; white-space: nowrap; transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  .key-toggle-btn:hover { border-color: var(--gold); color: var(--text); }
-  .api-hint {
-    font-size: 10px; color: #333; margin-top: 6px; line-height: 1.5;
-  }
   .api-hint a { color: #555; }
 
   /* ── History ── */
@@ -342,16 +328,6 @@ Persona (1966)"></textarea>
 
     <div class="deco-line"></div>
 
-    <!-- API Key -->
-    <div class="api-section">
-      <div class="option-label">Anthropic API Key</div>
-      <div class="api-key-row">
-        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" />
-        <button class="key-toggle-btn" id="keyToggleBtn" onclick="toggleKeyVisibility()">Göster</button>
-      </div>
-      <p class="api-hint">Anahtar yalnızca tarayıcında saklanır, hiçbir yere gönderilmez.</p>
-    </div>
-
     <button class="generate-btn" id="generateBtn" onclick="generate()">
       <span class="btn-text">→ Poster Konseptini Üret</span>
       <span class="btn-loader">
@@ -435,22 +411,6 @@ Persona (1966)"></textarea>
   }
 
   /* ── API key visibility toggle ── */
-  function toggleKeyVisibility() {
-    const inp = document.getElementById('apiKeyInput');
-    const btn = document.getElementById('keyToggleBtn');
-    if (inp.type === 'password') {
-      inp.type = 'text';
-      btn.textContent = 'Gizle';
-    } else {
-      inp.type = 'password';
-      btn.textContent = 'Göster';
-    }
-  }
-
-  function getApiKey() {
-    return document.getElementById('apiKeyInput').value.trim();
-  }
-
   /* ── Toast ── */
   function showToast(msg, duration = 2500) {
     const t = document.getElementById('toast');
@@ -486,12 +446,6 @@ Persona (1966)"></textarea>
       return;
     }
 
-    const apiKey = getApiKey();
-    if (!apiKey.startsWith('sk-')) {
-      showError('Geçerli bir Anthropic API anahtarı girin (sk- ile başlamalı).');
-      return;
-    }
-
     const era  = getVal('eraGroup');
     const lang = getVal('langGroup');
     const mood = getVal('moodGroup');
@@ -519,13 +473,9 @@ ${filmText}
 Stil: ${era} dönem, ${mood} atmosfer. Renk paleti bu döneme ve ruh haline uygun olsun.`;
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-opus-4-5',
           max_tokens: 1000,

@@ -20,29 +20,30 @@ export default {
       const body = await request.json();
       const prompt = (body.messages || []).map(m => m.content).join('\n');
 
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.GEMINI_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: body.max_tokens || 1000 }
-          })
-        }
-      );
+      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.GROQ_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: body.max_tokens || 1000,
+          messages: body.messages || [],
+        })
+      });
 
-      const geminiData = await geminiRes.json();
+      const groqData = await groqRes.json();
 
-      if (!geminiRes.ok || geminiData.error) {
-        const msg = geminiData.error?.message || JSON.stringify(geminiData);
+      if (!groqRes.ok || groqData.error) {
+        const msg = groqData.error?.message || JSON.stringify(groqData);
         return new Response(JSON.stringify({ error: { message: msg } }), {
-          status: geminiRes.status,
+          status: groqRes.status,
           headers: { 'Content-Type': 'application/json' }
         });
       }
 
-      const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const text = groqData.choices?.[0]?.message?.content || '';
 
       // Return in Anthropic-compatible format so frontend needs no changes
       return new Response(JSON.stringify({

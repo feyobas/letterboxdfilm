@@ -33,6 +33,15 @@ export default {
       );
 
       const geminiData = await geminiRes.json();
+
+      if (!geminiRes.ok || geminiData.error) {
+        const msg = geminiData.error?.message || JSON.stringify(geminiData);
+        return new Response(JSON.stringify({ error: { message: msg } }), {
+          status: geminiRes.status,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
       const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       // Return in Anthropic-compatible format so frontend needs no changes

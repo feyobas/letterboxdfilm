@@ -18,19 +18,27 @@ export default {
       }
 
       const body = await request.json();
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': env.ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(body),
-      });
+      const prompt = (body.messages || []).map(m => m.content).join('\n');
 
-      const data = await res.json();
-      return new Response(JSON.stringify(data), {
-        status: res.status,
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: body.max_tokens || 1000 }
+          })
+        }
+      );
+
+      const geminiData = await geminiRes.json();
+      const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      // Return in Anthropic-compatible format so frontend needs no changes
+      return new Response(JSON.stringify({
+        content: [{ type: 'text', text }]
+      }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
